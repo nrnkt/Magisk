@@ -9,9 +9,11 @@ import androidx.databinding.Bindable
 import com.topjohnwu.magisk.BR
 import com.topjohnwu.magisk.BuildConfig
 import com.topjohnwu.magisk.R
+import com.topjohnwu.magisk.arch.UIActivity
 import com.topjohnwu.magisk.core.Config
 import com.topjohnwu.magisk.core.Const
 import com.topjohnwu.magisk.core.Info
+import com.topjohnwu.magisk.core.di.ServiceLocator
 import com.topjohnwu.magisk.core.tasks.HideAPK
 import com.topjohnwu.magisk.core.utils.BiometricHelper
 import com.topjohnwu.magisk.core.utils.MediaStoreUtils
@@ -22,6 +24,7 @@ import com.topjohnwu.magisk.databinding.DialogSettingsDownloadPathBinding
 import com.topjohnwu.magisk.databinding.DialogSettingsUpdateChannelBinding
 import com.topjohnwu.magisk.databinding.set
 import com.topjohnwu.magisk.ktx.activity
+import com.topjohnwu.magisk.ui.theme.Theme
 import com.topjohnwu.magisk.utils.Utils
 import com.topjohnwu.magisk.utils.asText
 import com.topjohnwu.magisk.view.MagiskDialog
@@ -29,10 +32,9 @@ import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
-// --- Customization
 
-object Customization : BaseSettingsItem.Section() {
-    override val title = R.string.settings_customization.asText()
+object LanguageTitle : BaseSettingsItem.Section() {
+    override val title = R.string.language.asText()
 }
 
 object Language : BaseSettingsItem.Selector() {
@@ -42,8 +44,8 @@ object Language : BaseSettingsItem.Selector() {
             index = value
             Config.locale = entryValues[value]
         }
-
     override val title = R.string.language.asText()
+    override val icon = R.drawable.ic_language
 
     private var entries = emptyArray<String>()
     private var entryValues = emptyArray<String>()
@@ -70,9 +72,59 @@ object Language : BaseSettingsItem.Selector() {
     }
 }
 
-object Theme : BaseSettingsItem.Blank() {
-    override val icon = R.drawable.ic_paint
-    override val title = R.string.section_theme.asText()
+object LanguageTranslate : BaseSettingsItem.Blank() {
+    override val title = R.string.language_translate.asText()
+    override val icon = R.drawable.ic_translate
+    override val description = R.string.language_translate_description.asText()
+    val context get() = ServiceLocator.deContext
+    const val link = "https://translate.nift4.org/engage/magisk-delta/"
+}
+
+// --- Customization
+
+object Customization : BaseSettingsItem.Section() {
+    override val title = R.string.settings_customization.asText()
+}
+
+object ThemeColor : BaseSettingsItem.Blank() {
+    override val icon = R.drawable.ic_palette
+    override val title = R.string.settings_theme_color.asText()
+    override val description get () = Theme.selected.themeName
+}
+
+object DarkTheme : BaseSettingsItem.Selector() {
+    override val title = R.string.settings_dark_theme_title.asText()
+    override val icon = R.drawable.ic_dark_theme
+    override val entryRes = R.array.dark_theme
+    override var value by Config::darkThemeList
+
+    private var themeValue by Config::darkTheme
+    override fun onPressed(view: View, handler: Handler) {
+        handler.onItemPressed(view, this) {
+            MagiskDialog(view.activity).apply {
+                setTitle(R.string.settings_dark_theme_title)
+                setListItems(entries(view.resources)) {
+
+                    // MODE_NIGHT_FOLLOW_SYSTEM is -1 but first item's value
+                    // is 0 (which points to a deprecated theme value).
+                    var itFix = it
+                    if (it == 0) itFix = -1
+                    if (themeValue != itFix) {
+                        themeValue = itFix
+                        value = it
+                        notifyPropertyChanged(BR.description)
+                        (activity as UIActivity<*>).delegate.localNightMode = themeValue
+                        handler.onItemAction(view, this@DarkTheme)
+                    }
+                }
+                setButton(MagiskDialog.ButtonType.POSITIVE) {
+                    text = android.R.string.cancel
+                }
+                setCancelable(true)
+                show()
+            }
+        }
+    }
 }
 
 // --- App
@@ -83,6 +135,7 @@ object AppSettings : BaseSettingsItem.Section() {
 
 object Hide : BaseSettingsItem.Input() {
     override val title = R.string.settings_hide_app_title.asText()
+    override val icon = R.drawable.ic_deployed_code
     override val description = R.string.settings_hide_app_summary.asText()
     override var value = ""
 
@@ -106,6 +159,7 @@ object Hide : BaseSettingsItem.Input() {
 
 object Restore : BaseSettingsItem.Blank() {
     override val title = R.string.settings_restore_app_title.asText()
+    override val icon = R.drawable.ic_settings_backup_restore
     override val description = R.string.settings_restore_app_summary.asText()
 
     override fun onPressed(view: View, handler: Handler) {
@@ -113,13 +167,13 @@ object Restore : BaseSettingsItem.Blank() {
             MagiskDialog(view.activity).apply {
                 setTitle(R.string.settings_restore_app_title)
                 setMessage(R.string.restore_app_confirmation)
-                setButton(MagiskDialog.ButtonType.POSITIVE) {
+                setButton(MagiskDialog.ButtonType.NEGATIVE) {
                     text = android.R.string.ok
                     onClick {
                         handler.onItemAction(view, this@Restore)
                     }
                 }
-                setButton(MagiskDialog.ButtonType.NEGATIVE) {
+                setButton(MagiskDialog.ButtonType.POSITIVE) {
                     text = android.R.string.cancel
                 }
                 setCancelable(true)
@@ -131,6 +185,7 @@ object Restore : BaseSettingsItem.Blank() {
 
 object AddShortcut : BaseSettingsItem.Blank() {
     override val title = R.string.add_shortcut_title.asText()
+    override val icon = R.drawable.ic_app_shortcut
     override val description = R.string.setting_add_shortcut_summary.asText()
 }
 
@@ -143,6 +198,7 @@ object DownloadPath : BaseSettingsItem.Input() {
         }
 
     override val title = R.string.settings_download_path_title.asText()
+    override val icon = R.drawable.ic_download
     override val description get() = MediaStoreUtils.fullPath(value).asText()
 
     override var inputResult: String = value
@@ -164,6 +220,7 @@ object UpdateChannel : BaseSettingsItem.Selector() {
         }
 
     override val title = R.string.settings_update_channel_title.asText()
+    override val icon = R.drawable.ic_merge_type
 
     override val entryRes = R.array.update_channel
     override fun entries(res: Resources): Array<String> {
@@ -177,6 +234,7 @@ object UpdateChannel : BaseSettingsItem.Selector() {
 
 object UpdateChannelUrl : BaseSettingsItem.Input() {
     override val title = R.string.settings_update_custom.asText()
+    override val icon = R.drawable.ic_add_link
     override val description get() = value.asText()
     override var value
         get() = Config.customChannelUrl
@@ -199,18 +257,21 @@ object UpdateChannelUrl : BaseSettingsItem.Input() {
 
 object UpdateChecker : BaseSettingsItem.Toggle() {
     override val title = R.string.settings_check_update_title.asText()
+    override val icon = R.drawable.ic_cached
     override val description = R.string.settings_check_update_summary.asText()
     override var value by Config::checkUpdate
 }
 
 object DoHToggle : BaseSettingsItem.Toggle() {
     override val title = R.string.settings_doh_title.asText()
+    override val icon = R.drawable.ic_dns
     override val description = R.string.settings_doh_description.asText()
     override var value by Config::doh
 }
 
 object SystemlessHosts : BaseSettingsItem.Blank() {
     override val title = R.string.settings_hosts_title.asText()
+    override val icon = R.drawable.ic_description
     override val description = R.string.settings_hosts_summary.asText()
 }
 
@@ -220,8 +281,13 @@ object Magisk : BaseSettingsItem.Section() {
     override val title = R.string.magisk.asText()
 }
 
+object MagiskHideClass : BaseSettingsItem.Section() {
+    override val title = R.string.settings_magiskhide_title.asText()
+}
+
 object Zygisk : BaseSettingsItem.Toggle() {
     override val title = R.string.zygisk.asText()
+    override val icon = R.drawable.ic_account_tree
     override val description get() =
         if (mismatch) R.string.reboot_apply_change.asText()
         else R.string.settings_zygisk_summary.asText()
@@ -229,33 +295,104 @@ object Zygisk : BaseSettingsItem.Toggle() {
         get() = Config.zygisk
         set(value) {
             Config.zygisk = value
-            DenyList.isEnabled = value
-            DenyListConfig.isEnabled = value
             notifyPropertyChanged(BR.description)
+            DenyList.notifyPropertyChanged(BR.title)
             DenyList.notifyPropertyChanged(BR.description)
+            DenyListConfig.refresh()
         }
     val mismatch get() = value != Info.isZygiskEnabled
 }
 
 object DenyList : BaseSettingsItem.Toggle() {
-    override val title = R.string.settings_denylist_title.asText()
+    override val title = R.string.settings_magiskhide_title.asText()
+    override val icon = R.drawable.ic_visibility_off
     override val description get() =
-        if (isEnabled) {
-            if (Zygisk.mismatch)
-                R.string.reboot_apply_change.asText()
-            else
-                R.string.settings_denylist_summary.asText()
-        } else {
-            R.string.settings_denylist_error.asText(R.string.zygisk.asText())
-        }
+        if (Info.sulist) R.string.settings_sulist_enforced.asText()
+        else R.string.settings_magiskhide_summary.asText()
 
     override var value = Config.denyList
         set(value) {
             field = value
             val cmd = if (value) "enable" else "disable"
-            Shell.cmd("magisk --denylist $cmd").submit { result ->
+            Shell.cmd("magisk --hide $cmd").submit { result ->
                 if (result.isSuccess) {
+					SuList.notifyPropertyChanged(BR.description)
                     Config.denyList = value
+                    DenyListConfig.refresh()
+                    SuList.refresh()
+                } else {
+                    field = !value
+                    notifyPropertyChanged(BR.checked)
+                }
+            }
+        }
+
+}
+
+
+object AntiBLoop : BaseSettingsItem.Toggle() {
+    override val title = R.string.settings_anti_bootloop_title.asText()
+    override val icon = R.drawable.ic_lock_reset
+    override val description get() = R.string.settings_anti_bootloop_summary.asText()
+
+    override var value = Config.antiBLoop
+        set(value) {
+            field = value
+            val cmd = if (value) "1" else "0"
+            Shell.cmd("magisk --sqlite \"REPLACE INTO settings (key,value) VALUES('anti_bootloop',$cmd);\"").submit { result ->
+                if (result.isSuccess) {
+                    Config.antiBLoop = value
+                } else {
+                    field = !value
+                    notifyPropertyChanged(BR.checked)
+                }
+            }
+        }
+}
+
+object CoreOnly : BaseSettingsItem.Toggle() {
+    override val title = R.string.settings_coreonly_title.asText()
+    override val icon = R.drawable.ic_blur_circular
+    override val description get() =
+        if (mismatch) R.string.reboot_apply_change.asText()
+        else R.string.settings_coreonly_summary.asText()
+
+    var coreonly = Shell.cmd("coreonly").exec().isSuccess
+    override var value = coreonly
+        set(value) {
+            field = value
+            val cmd = if (value) "enable" else "disable"
+            Shell.cmd("coreonly $cmd").submit { result ->
+                if (result.isSuccess) {
+                    coreonly = value
+                    Config.coreonly = value
+                    notifyPropertyChanged(BR.description)
+                } else {
+                    field = !value
+                    notifyPropertyChanged(BR.checked)
+                }
+            }
+        }
+    val mismatch get() = value != Info.coreonly
+}
+
+object SuList : BaseSettingsItem.Toggle() {
+    override val title = R.string.settings_sulist_title.asText()
+    override val icon = R.drawable.ic_disabled_visible
+    override val description get() =
+        if (!Config.denyList) R.string.settings_sulist_error_magiskhide.asText()
+        else if (mismatch) R.string.reboot_apply_change.asText()
+        else R.string.settings_sulist_summary.asText()
+
+
+    override var value = Config.sulist
+        set(value) {
+            field = value
+            val cmd = if (value) "1" else "0"
+            Shell.cmd("magisk --sqlite \"REPLACE INTO settings (key,value) VALUES('sulist',$cmd);\"").submit { result ->
+                if (result.isSuccess) {
+                    Config.sulist = value
+                    notifyPropertyChanged(BR.description)
                 } else {
                     field = !value
                     notifyPropertyChanged(BR.checked)
@@ -264,28 +401,45 @@ object DenyList : BaseSettingsItem.Toggle() {
         }
 
     override fun refresh() {
-        isEnabled = Zygisk.value
+        isEnabled = Config.denyList
     }
+	val mismatch get() = value != Info.sulist
 }
 
 object DenyListConfig : BaseSettingsItem.Blank() {
-    override val title = R.string.settings_denylist_config_title.asText()
-    override val description = R.string.settings_denylist_config_summary.asText()
+    var status = Shell.cmd("magisk --hide sulist").exec().isSuccess
+    override val icon = R.drawable.ic_checklist_rtl
+    override val title get() =
+        if (Info.sulist) R.string.settings_sulist_config_title.asText()
+        else R.string.settings_hidelist_config_title.asText()
+    override val description get() =
+        if (Info.sulist) R.string.settings_sulist_config_summary.asText()
+        else R.string.settings_hidelist_config_summary.asText()
+    
+    
     override fun refresh() {
-        isEnabled = Zygisk.value
+        isEnabled = true
     }
+}
+
+object CleanHideList : BaseSettingsItem.Blank() {
+    override val title = R.string.settings_clean_hidelist_title.asText()
+    override val icon = R.drawable.ic_clear_all
+    override val description = R.string.settings_clean_hidelist_summary.asText()
 }
 
 // --- Superuser
 
 object Tapjack : BaseSettingsItem.Toggle() {
     override val title = R.string.settings_su_tapjack_title.asText()
+    override val icon = R.drawable.ic_sms_failed
     override val description = R.string.settings_su_tapjack_summary.asText()
     override var value by Config::suTapjack
 }
 
 object Biometrics : BaseSettingsItem.Toggle() {
     override val title = R.string.settings_su_biometric_title.asText()
+    override val icon = R.drawable.ic_fingerprint
     override var description = R.string.settings_su_biometric_summary.asText()
     override var value by Config::suBiometric
 
@@ -305,12 +459,14 @@ object Superuser : BaseSettingsItem.Section() {
 
 object AccessMode : BaseSettingsItem.Selector() {
     override val title = R.string.superuser_access.asText()
+    override val icon = R.drawable.ic_numbers
     override val entryRes = R.array.su_access
     override var value by Config::rootMode
 }
 
 object MultiuserMode : BaseSettingsItem.Selector() {
     override val title = R.string.multiuser_mode.asText()
+    override val icon = R.drawable.ic_group
     override val entryRes = R.array.multiuser_mode
     override val descriptionRes = R.array.multiuser_summary
     override var value by Config::suMultiuserMode
@@ -322,6 +478,7 @@ object MultiuserMode : BaseSettingsItem.Selector() {
 
 object MountNamespaceMode : BaseSettingsItem.Selector() {
     override val title = R.string.mount_namespace_mode.asText()
+    override val icon = R.drawable.ic_build
     override val entryRes = R.array.namespace
     override val descriptionRes = R.array.namespace_summary
     override var value by Config::suMntNamespaceMode
@@ -329,12 +486,14 @@ object MountNamespaceMode : BaseSettingsItem.Selector() {
 
 object AutomaticResponse : BaseSettingsItem.Selector() {
     override val title = R.string.auto_response.asText()
+    override val icon = R.drawable.ic_stream_apps
     override val entryRes = R.array.auto_response
     override var value by Config::suAutoResponse
 }
 
 object RequestTimeout : BaseSettingsItem.Selector() {
     override val title = R.string.request_timeout.asText()
+    override val icon = R.drawable.ic_timer
     override val entryRes = R.array.request_timeout
 
     private val entryValues = listOf(10, 15, 20, 30, 45, 60)
@@ -347,12 +506,14 @@ object RequestTimeout : BaseSettingsItem.Selector() {
 
 object SUNotification : BaseSettingsItem.Selector() {
     override val title = R.string.superuser_notification.asText()
+    override val icon = R.drawable.ic_notification_important
     override val entryRes = R.array.su_notification
     override var value by Config::suNotification
 }
 
 object Reauthenticate : BaseSettingsItem.Toggle() {
     override val title = R.string.settings_su_reauth_title.asText()
+    override val icon = R.drawable.ic_perm_device_information
     override val description = R.string.settings_su_reauth_summary.asText()
     override var value by Config::suReAuth
 

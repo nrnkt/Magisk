@@ -37,6 +37,7 @@ void setup_klog();
 const char *backup_init();
 void restore_ramdisk_init();
 int dump_preload(const char *path, mode_t mode);
+int patch_sepol(const char *in, const char *out);
 
 /***************
  * Base classes
@@ -59,6 +60,7 @@ class MagiskInit : public BaseInit {
 private:
     void mount_rules_dir();
 protected:
+    std::string custom_rules_dir;
 
 #if ENABLE_AVD_HACK
     // When this boolean is set, this means we are currently

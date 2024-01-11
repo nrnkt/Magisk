@@ -12,15 +12,12 @@ import com.topjohnwu.magisk.databinding.set
 import com.topjohnwu.magisk.utils.TextHolder
 import com.topjohnwu.magisk.utils.asText
 
-object InstallModule : DiffRvItem<InstallModule>() {
-    override val layoutRes = R.layout.item_module_download
-}
 
 class LocalModuleRvItem(
     override val item: LocalModule
 ) : ObservableDiffRvItem<LocalModuleRvItem>(), RvContainer<LocalModule> {
 
-    override val layoutRes = R.layout.item_module_md2
+    override val layoutRes = R.layout.item_module
 
     val showNotice: Boolean
     val noticeText: TextHolder

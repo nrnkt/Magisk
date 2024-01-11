@@ -2,7 +2,7 @@
 #include <sys/mount.h>
 #include <sys/sysmacros.h>
 #include <libgen.h>
-#include <inttypes.h>
+#include <unistd.h>
 
 #include <base.hpp>
 #include <selinux.hpp>
@@ -19,6 +19,16 @@ struct devinfo {
     char partname[32];
     char dmname[32];
 };
+
+
+static const char *preinit_part[]={
+        PREINIT_PARTS ,
+        nullptr
+    };
+static const char *mirror_part[]={
+        PREINIT_MIRRORS ,
+        nullptr
+    };
 
 static vector<devinfo> dev_list;
 
@@ -113,32 +123,152 @@ static void switch_root(const string &path) {
 }
 
 void MagiskInit::mount_rules_dir() {
-    dev_t rules_dev = 0;
-    parse_prop_file(".backup/.magisk", [&rules_dev](auto key, auto value) -> bool {
-        if (key == "RULESDEVICE") {
-            sscanf(value.data(), "%" PRIuPTR, &rules_dev);
-            return false;
+    char path[128];
+    char mirrpath[1024];
+    char current[20];
+    char currentblk[20];
+    bool success=false;
+    xrealpath(BLOCKDIR, blk_info.block_dev, sizeof(blk_info.block_dev));
+    xrealpath(MIRRDIR, path, sizeof(path));
+    xrealpath(MIRRDIR, mirrpath, sizeof(mirrpath));
+    string custom_early_dir = "/data/unencrypted/early-mount.d"s;
+    string full_early_dir;
+    string tmpdir_;
+
+    char *b = blk_info.block_dev + strlen(blk_info.block_dev);
+    char *p = path + strlen(path);
+
+    auto do_mount = [&](const char *type) -> bool {
+        xmkdir(path, 0755);
+        bool success = xmount(blk_info.block_dev, path, type, 0, nullptr) == 0;
+        if (success)
+            mount_list.emplace_back(path);
+        return success;
+    };
+
+    // First try userdata
+    strcpy(blk_info.partname, "userdata");
+    strcpy(b, "/data");
+    strcpy(p, "/data");
+    if (setup_block() < 0) {
+        // Try NVIDIA naming scheme
+        strcpy(blk_info.partname, "UDA");
+        if (setup_block() < 0)
+            goto cache;
+    }
+    // WARNING: DO NOT ATTEMPT TO MOUNT F2FS AS IT MAY CRASH THE KERNEL
+    // Failure means either f2fs, FDE, or metadata encryption
+    if (!do_mount("ext4"))
+        goto cache;
+
+    strcpy(p, "/data/unencrypted");
+    if (xaccess(path, F_OK) == 0) {
+        // FBE, need to use an unencrypted path
+        custom_rules_dir = path + "/magisk"s;
+    } else {
+        // Skip if /data/adb does not exist
+        strcpy(p, SECURE_DIR);
+        if (xaccess(path, F_OK) != 0)
+            return;
+        strcpy(p, MODULEROOT);
+        if (xaccess(path, F_OK) != 0) {
+            goto cache;
         }
-        return true;
-    });
-    if (!rules_dev) return;
-    xmknod(BLOCKDIR "/rules", S_IFBLK | 0600, rules_dev);
-    xmkdir(MIRRDIR "/rules", 0);
-    if (xmount(BLOCKDIR "/rules", MIRRDIR "/rules", "ext4", 0, nullptr) == 0) {
-        string custom_rules_dir = MIRRDIR "/rules";
-        if (access((custom_rules_dir + "/unencrypted").data(), F_OK) == 0) {
-            custom_rules_dir += "/unencrypted/magisk";
-        } else if (access((custom_rules_dir + "/adb").data(), F_OK) == 0) {
-            custom_rules_dir += "/adb/modules";
-        } else {
-            custom_rules_dir += "/magisk";
+        // Unencrypted, directly use module paths
+        custom_rules_dir = string(path);
+        custom_early_dir = "/data/adb/early-mount.d"s;
+    }
+    success=true;
+    strcpy(currentblk, blk_info.partname);
+    strcpy(current, p);
+
+cache:
+    // Fallback to cache
+    strcpy(blk_info.partname, "cache");
+    strcpy(b, "/cache");
+    strcpy(p, "/cache");
+    if (setup_block() < 0) {
+        // Try NVIDIA naming scheme
+        strcpy(blk_info.partname, "CAC");
+        if (setup_block() < 0)
+            goto metadata;
+    }
+    if (!do_mount("ext4"))
+        goto metadata;
+    if (!success){
+        success=true;
+        custom_rules_dir = path + "/magisk"s;
+        custom_early_dir = "/cache/early-mount.d"s;
+        strcpy(currentblk, blk_info.partname);
+        strcpy(current, p);
+    }
+
+metadata:
+    // Fallback to metadata
+    strcpy(blk_info.partname, "metadata");
+    strcpy(b, "/metadata");
+    strcpy(p, "/metadata");
+    if (setup_block() < 0 || !do_mount("ext4"))
+        goto persist;
+    if (!success){
+        success=true;
+        custom_rules_dir = path + "/magisk"s;
+        custom_early_dir = "/metadata/early-mount.d"s;
+        strcpy(currentblk, blk_info.partname);
+        strcpy(current, p);
+    }
+
+persist:
+    // Fallback to persist
+    strcpy(blk_info.partname, "persist");
+    strcpy(b, "/persist");
+    strcpy(p, "/persist");
+    if (setup_block() < 0 || !do_mount("ext4"))
+        return;
+    if (!success){
+        success=true;
+        custom_rules_dir = path + "/magisk"s;
+        custom_early_dir = "/persist/early-mount.d"s;
+        strcpy(currentblk, blk_info.partname);
+        strcpy(current, p);
+    }
+
+success:
+    // restore path
+    strcpy(blk_info.partname, currentblk);
+    strcpy(p, current);
+    // Create symlinks so we don't need to go through this logic again
+    strcpy(p, "/sepolicy.rules");
+    if (char *rel = strstr(custom_rules_dir.data(), MIRRDIR)) {
+        // Create symlink with relative path
+        char s[128];
+        s[0] = '.';
+        strscpy(s + 1, rel + sizeof(MIRRDIR) - 1, sizeof(s) - 1);
+        xsymlink(s, path);
+    } else {
+        xsymlink(custom_rules_dir.data(), path);
+    }
+    
+    strcpy(p, "/early-mount");
+    full_early_dir = mirrpath + custom_early_dir;
+    xmkdir(full_early_dir.data(), 0755);
+    xmkdir(custom_rules_dir.data(), 0755);
+    xmkdir(string(full_early_dir + "/initrc.d").data(), 0755);
+    custom_early_dir = "."s + custom_early_dir;
+    xsymlink(custom_early_dir.data(), path);
+    cp_afc(full_early_dir.data(), INTLROOT "/early-mount.d");
+
+    char buf[4098];
+    for (int i = 0; preinit_part[i]; i++) {
+        ssprintf(buf, sizeof(buf), "%s%s/.disable_magisk",
+                 mirrpath, preinit_part[i]);
+        if (access(buf, F_OK) == 0) {
+            for (int i = 0; mirror_part[i]; i++) {
+                ssprintf(buf, sizeof(buf), "%s%s", mirrpath, mirror_part[i]);
+                umount2(buf, MNT_DETACH);
+            }
+            return;
         }
-        // Create bind mount
-        xmkdirs(RULESDIR, 0);
-        xmkdirs(custom_rules_dir.data(), 0700);
-        LOGD("sepolicy.rules: %s -> %s\n", custom_rules_dir.data(), RULESDIR);
-        xmount(custom_rules_dir.data(), RULESDIR, nullptr, MS_BIND, nullptr);
-        xumount2(MIRRDIR "/rules", MNT_DETACH);
     }
 }
 
@@ -226,11 +356,74 @@ void BaseInit::exec_init() {
 void BaseInit::prepare_data() {
     LOGD("Setup data tmp\n");
     xmkdir("/data", 0755);
-    xmount("magisk", "/data", "tmpfs", 0, "mode=755");
+    xmount("tmpfs", "/data", "tmpfs", 0, "mode=755");
 
     cp_afc("/init", "/data/magiskinit");
     cp_afc("/.backup", "/data/.backup");
     cp_afc("/overlay.d", "/data/overlay.d");
+}
+
+static bool system_lnk(const char *path){
+    char buff[4098];
+    ssize_t len = readlink(path, buff, sizeof(buff)-1);
+    if (len != -1) {
+        return true;
+    }
+    return false;
+}
+
+
+static void simple_mount(const string &sdir, const string &ddir = "") {
+    auto dir = xopen_dir(sdir.data());
+    if (!dir) return;
+    for (dirent *entry; (entry = xreaddir(dir.get()));) {
+        string src = sdir + "/" + entry->d_name;
+        string dest = ddir + "/" + entry->d_name;
+        if (access(dest.data(), F_OK) == 0 && !system_lnk(dest.data())) {
+        	if (entry->d_type == DT_LNK) continue;
+            else if (entry->d_type == DT_DIR) {
+                // Recursive
+                simple_mount(src, dest);
+            } else {
+                LOGD("bind_mnt: %s <- %s\n", dest.data(), src.data());
+                xmount(src.data(), dest.data(), nullptr, MS_BIND, nullptr);
+            }
+        }
+    }
+}
+
+
+void early_mount(const char *magisk_tmp){
+    LOGI("** early-mount start\n");
+    char buf[4098];
+    const char *part[]={
+        SPEC_PARTS ,
+        nullptr
+    };
+
+    for (int i = 0; preinit_part[i]; i++) {
+        ssprintf(buf, sizeof(buf), "%s/" MIRRDIR "%s/.disable_magisk",
+                 magisk_tmp, preinit_part[i]);
+        if (access(buf, F_OK) == 0) return;
+    }
+
+    ssprintf(buf, sizeof(buf), "%s/" MIRRDIR "/early-mount", magisk_tmp);
+    fsetfilecon(xopen(buf, O_RDONLY | O_CLOEXEC), "u:object_r:system_file:s0");
+    sprintf(buf, "%s/" MIRRDIR "/early-mount/skip_mount", magisk_tmp);
+    if (access(buf, F_OK) == 0) return;
+
+    // SYSTEM
+    ssprintf(buf, sizeof(buf), "%s/" INTLROOT "/early-mount.d/system", magisk_tmp);
+    if (access(buf, F_OK) == 0)
+    	simple_mount(buf, "/system");
+
+    // VENDOR, PRODUCT, SYSTEM_EXT
+    for (int i=0; part[i];i++) {
+        ssprintf(buf, sizeof(buf), "%s/" INTLROOT "/early-mount.d/system%s",
+                 magisk_tmp, part[i]);
+        if (access(buf, F_OK) == 0 && !system_lnk(part[i]))
+            simple_mount(buf, part[i]);
+    }
 }
 
 void MagiskInit::setup_tmp(const char *path) {
@@ -243,6 +436,7 @@ void MagiskInit::setup_tmp(const char *path) {
     xmkdir(WORKERDIR, 0);
 
     mount_rules_dir();
+    early_mount("/data");
 
     cp_afc(".backup/.magisk", INTLROOT "/config");
     rm_rf(".backup");
@@ -252,7 +446,7 @@ void MagiskInit::setup_tmp(const char *path) {
         xsymlink("./magisk", applet_names[i]);
     xsymlink("./magiskpolicy", "supolicy");
 
-    xmount(".", path, nullptr, MS_BIND | MS_REC, nullptr);
+    xmount(".", path, nullptr, MS_BIND, nullptr);
 
     chdir("/");
 }

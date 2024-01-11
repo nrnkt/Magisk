@@ -1,4 +1,5 @@
 #include <sys/mount.h>
+#include <stdio.h>
 
 #include <magisk.hpp>
 #include <sepolicy.hpp>
@@ -8,6 +9,14 @@
 
 using namespace std;
 
+int patch_sepol(const char *in, const char *out) {
+    auto sepol = unique_ptr<sepolicy>(sepolicy::from_file(in));
+    if (!sepol) return 1;
+    sepol->magisk_rules();
+    if (!sepol->to_file(out)) return 2;
+    return 0;
+}
+
 void MagiskInit::patch_sepolicy(const char *in, const char *out) {
     LOGD("Patching monolithic policy\n");
     auto sepol = unique_ptr<sepolicy>(sepolicy::from_file(in));
@@ -15,14 +24,14 @@ void MagiskInit::patch_sepolicy(const char *in, const char *out) {
     sepol->magisk_rules();
 
     // Custom rules
-    if (auto dir = xopen_dir(RULESDIR)) {
-        for (dirent *entry; (entry = xreaddir(dir.get()));) {
-            auto rule = RULESDIR "/"s + entry->d_name + "/sepolicy.rule";
-            if (xaccess(rule.data(), R_OK) == 0 &&
-                access((RULESDIR "/"s + entry->d_name + "/disable").data(), F_OK) != 0 &&
-                access((RULESDIR "/"s + entry->d_name + "/remove").data(), F_OK) != 0) {
-                LOGD("Loading custom sepolicy patch: [%s]\n", rule.data());
-                sepol->load_rule_file(rule.data());
+    if (!custom_rules_dir.empty()) {
+        if (auto dir = xopen_dir(custom_rules_dir.data())) {
+            for (dirent *entry; (entry = xreaddir(dir.get()));) {
+                auto rule = custom_rules_dir + "/" + entry->d_name + "/sepolicy.rule";
+                if (xaccess(rule.data(), R_OK) == 0) {
+                    LOGD("Loading custom sepolicy patch: [%s]\n", rule.data());
+                    sepol->load_rule_file(rule.data());
+                }
             }
         }
     }
@@ -96,18 +105,19 @@ bool MagiskInit::hijack_sepolicy() {
 
     // Read all custom rules into memory
     string rules;
-    if (auto dir = xopen_dir(RULESDIR)) {
-        for (dirent *entry; (entry = xreaddir(dir.get()));) {
-            auto rule_file = RULESDIR "/"s + entry->d_name + "/sepolicy.rule";
-            if (xaccess(rule_file.data(), R_OK) == 0 &&
-                access((RULESDIR "/"s + entry->d_name + "/disable").data(), F_OK) != 0 &&
-                access((RULESDIR "/"s + entry->d_name + "/remove").data(), F_OK) != 0) {
-                LOGD("Load custom sepolicy patch: [%s]\n", rule_file.data());
-                full_read(rule_file.data(), rules);
-                rules += '\n';
+    if (!custom_rules_dir.empty()) {
+        if (auto dir = xopen_dir(custom_rules_dir.data())) {
+            for (dirent *entry; (entry = xreaddir(dir.get()));) {
+                auto rule_file = custom_rules_dir + "/" + entry->d_name + "/sepolicy.rule";
+                if (xaccess(rule_file.data(), R_OK) == 0) {
+                    LOGD("Load custom sepolicy patch: [%s]\n", rule_file.data());
+                    full_read(rule_file.data(), rules);
+                    rules += '\n';
+                }
             }
         }
     }
+
     // Create a new process waiting for init operations
     if (xfork()) {
         // In parent, return and continue boot process

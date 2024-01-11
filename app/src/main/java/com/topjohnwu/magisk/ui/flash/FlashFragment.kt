@@ -14,12 +14,12 @@ import com.topjohnwu.magisk.arch.BaseFragment
 import com.topjohnwu.magisk.arch.viewModel
 import com.topjohnwu.magisk.core.Const
 import com.topjohnwu.magisk.core.cmp
-import com.topjohnwu.magisk.databinding.FragmentFlashMd2Binding
+import com.topjohnwu.magisk.databinding.FragmentFlashBinding
 import com.topjohnwu.magisk.ui.MainActivity
 
-class FlashFragment : BaseFragment<FragmentFlashMd2Binding>() {
+class FlashFragment : BaseFragment<FragmentFlashBinding>() {
 
-    override val layoutRes = R.layout.fragment_flash_md2
+    override val layoutRes = R.layout.fragment_flash
     override val viewModel by viewModel<FlashViewModel>()
     override val snackbarView: View get() = binding.snackbarContainer
     override val snackbarAnchorView: View?
@@ -94,7 +94,7 @@ class FlashFragment : BaseFragment<FragmentFlashMd2Binding>() {
         return super.onBackPressed()
     }
 
-    override fun onPreBind(binding: FragmentFlashMd2Binding) = Unit
+    override fun onPreBind(binding: FragmentFlashBinding) = Unit
 
     companion object {
 
@@ -106,12 +106,14 @@ class FlashFragment : BaseFragment<FragmentFlashMd2Binding>() {
                 .setArguments(args.toBundle())
                 .createPendingIntent()
 
-        private fun flashType(isSecondSlot: Boolean) =
-            if (isSecondSlot) Const.Value.FLASH_INACTIVE_SLOT else Const.Value.FLASH_MAGISK
+        private fun flashType(isSecondSlot: Int) =
+            if (isSecondSlot == 1) Const.Value.FLASH_INACTIVE_SLOT
+            else if (isSecondSlot == 2) Const.Value.FLASH_MAGISK_SYSTEM
+            else Const.Value.FLASH_MAGISK
 
         /* Flashing is understood as installing / flashing magisk itself */
 
-        fun flash(isSecondSlot: Boolean) = MainDirections.actionFlashFragment(
+        fun flash(isSecondSlot: Int) = MainDirections.actionFlashFragment(
             action = flashType(isSecondSlot)
         )
 

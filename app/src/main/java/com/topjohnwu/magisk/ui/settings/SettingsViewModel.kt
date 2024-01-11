@@ -4,6 +4,7 @@ import android.os.Build
 import android.view.View
 import android.widget.Toast
 import androidx.core.content.pm.ShortcutManagerCompat
+import androidx.core.net.toUri
 import androidx.lifecycle.viewModelScope
 import com.topjohnwu.magisk.BR
 import com.topjohnwu.magisk.BuildConfig
@@ -19,7 +20,10 @@ import com.topjohnwu.magisk.events.AddHomeIconEvent
 import com.topjohnwu.magisk.events.SnackbarEvent
 import com.topjohnwu.magisk.events.dialog.BiometricEvent
 import com.topjohnwu.magisk.ktx.activity
+import com.topjohnwu.magisk.ui.settings.LanguageTranslate.context
+import com.topjohnwu.magisk.ui.settings.LanguageTranslate.link
 import com.topjohnwu.magisk.utils.Utils
+import com.topjohnwu.magisk.utils.Utils.openLink
 import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.launch
 
@@ -40,32 +44,46 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
         val context = AppContext
         val hidden = context.packageName != BuildConfig.APPLICATION_ID
 
-        // Customization
+        // Language
         val list = mutableListOf(
-            Customization,
-            Theme, Language
+            LanguageTitle,
+            Language, LanguageTranslate
         )
-        if (isRunningAsStub && ShortcutManagerCompat.isRequestPinShortcutSupported(context))
-            list.add(AddShortcut)
+
+        // Customization
+        list.addAll(listOf(
+            Customization,
+            ThemeColor, DarkTheme
+        ))
 
         // Manager
         list.addAll(listOf(
-            AppSettings,
-            UpdateChannel, UpdateChannelUrl, DoHToggle, UpdateChecker, DownloadPath
+        AppSettings,
+        DoHToggle, UpdateChecker, UpdateChannel, UpdateChannelUrl, DownloadPath
         ))
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1 &&
-                Info.env.isActive && Const.USER_ID == 0) {
+            Info.env.isActive && Const.USER_ID == 0) {
             if (hidden) list.add(Restore) else list.add(Hide)
         }
 
+        if (isRunningAsStub && ShortcutManagerCompat.isRequestPinShortcutSupported(context))
+            list.add(AddShortcut)
+
         // Magisk
         if (Info.env.isActive) {
-            list.addAll(listOf(
-                Magisk,
-                SystemlessHosts
-            ))
-            if (Const.Version.atLeast_24_0()) {
-                list.addAll(listOf(Zygisk, DenyList, DenyListConfig))
+            val is_delta = Shell.cmd("is_delta").exec().isSuccess;
+            val use_full_magisk = Shell.cmd("use_full_magisk").exec().isSuccess;
+            if (use_full_magisk){
+                list.addAll(listOf(
+                    Magisk,
+                    SystemlessHosts
+                ))
+                if (Const.Version.atLeast_24_0()) {
+                    list.add(Zygisk)
+                    if (is_delta){
+                        list.addAll(listOf(AntiBLoop, CoreOnly, MagiskHideClass, DenyList, SuList, DenyListConfig, CleanHideList))
+                    }
+                }
             }
         }
 
@@ -98,11 +116,13 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
             DownloadPath -> withExternalRW(andThen)
             UpdateChecker -> withPostNotificationPermission(andThen)
             Biometrics -> authenticate(andThen)
-            Theme -> SettingsFragmentDirections.actionSettingsFragmentToThemeFragment().navigate()
+            ThemeColor -> SettingsFragmentDirections.actionSettingsFragmentToThemeFragment().navigate()
             DenyListConfig -> SettingsFragmentDirections.actionSettingsFragmentToDenyFragment().navigate()
             SystemlessHosts -> createHosts()
+            CleanHideList -> clean_HideList()
             Hide, Restore -> withInstallPermission(andThen)
             AddShortcut -> AddHomeIconEvent().publish()
+            LanguageTranslate -> openLink(context, link.toUri())
             else -> andThen()
         }
     }
@@ -113,6 +133,8 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
             is Hide -> viewModelScope.launch { HideAPK.hide(view.activity, item.value) }
             Restore -> viewModelScope.launch { HideAPK.restore(view.activity) }
             Zygisk -> if (Zygisk.mismatch) SnackbarEvent(R.string.reboot_apply_change).publish()
+            SuList -> if (SuList.mismatch) SnackbarEvent(R.string.reboot_apply_change).publish()
+            CoreOnly -> if (CoreOnly.mismatch) SnackbarEvent(R.string.reboot_apply_change).publish()
             else -> Unit
         }
     }
@@ -134,6 +156,12 @@ class SettingsViewModel : BaseViewModel(), BaseSettingsItem.Handler {
     private fun createHosts() {
         Shell.cmd("add_hosts_module").submit {
             Utils.toast(R.string.settings_hosts_toast, Toast.LENGTH_SHORT)
+        }
+    }
+
+    private fun clean_HideList() {
+        Shell.cmd("clean_hidelist").submit {
+            Utils.toast(R.string.settings_clean_hidelist_toast, Toast.LENGTH_SHORT)
         }
     }
 }
