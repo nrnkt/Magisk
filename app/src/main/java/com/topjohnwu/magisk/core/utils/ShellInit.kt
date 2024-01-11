@@ -73,11 +73,14 @@ class ShellInit : Shell.Initializer() {
         fun getVar(name: String) = fastCmd("echo \$$name")
         fun getBool(name: String) = getVar(name).toBoolean()
 
+        Const.MAGISKTMP = getVar("MAGISKTMP")
         Info.isSAR = getBool("SYSTEM_ROOT")
         Info.ramdisk = getBool("RAMDISKEXIST")
         Info.vbmeta = getBool("VBMETAEXIST")
         Info.isAB = getBool("ISAB")
         Info.crypto = getVar("CRYPTOTYPE")
+        Info.allowSystemMagisk = getBool("ALLOWSYSTEMINSTALL")
+        Info.sulist = getBool("SULISTMODE")
 
         // Default presets
         Config.recovery = getBool("RECOVERYMODE")

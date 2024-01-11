@@ -23,6 +23,7 @@ import com.topjohnwu.magisk.utils.Utils
 import com.topjohnwu.magisk.utils.asText
 import com.topjohnwu.superuser.Shell
 import kotlin.math.roundToInt
+import com.topjohnwu.magisk.core.Const
 
 class HomeViewModel(
     private val svc: NetworkService
@@ -32,11 +33,8 @@ class HomeViewModel(
         LOADING, INVALID, OUTDATED, UP_TO_DATE
     }
 
-    val magiskTitleBarrierIds =
-        intArrayOf(R.id.home_magisk_icon, R.id.home_magisk_title, R.id.home_magisk_button)
-    val appTitleBarrierIds =
-        intArrayOf(R.id.home_manager_icon, R.id.home_manager_title, R.id.home_manager_button)
-
+    val home_magiskBarrierIds =
+        intArrayOf(R.id.home_magisk_info, R.id.home_magisk_uninstall)
     @get:Bindable
     var isNoticeVisible = Config.safetyNotice
         set(value) = set(value, field, { field = it }, BR.noticeVisible)
@@ -45,6 +43,7 @@ class HomeViewModel(
         get() = when {
             Info.isRooted && Info.env.isUnsupported -> State.OUTDATED
             !Info.env.isActive -> State.INVALID
+            Const.APP_IS_CANARY && Info.env.versionString != BuildConfig.VERSION_NAME -> State.OUTDATED
             Info.env.versionCode < BuildConfig.VERSION_CODE -> State.OUTDATED
             else -> State.UP_TO_DATE
         }
@@ -86,6 +85,7 @@ class HomeViewModel(
         Info.getRemote(svc)?.apply {
             appState = when {
                 BuildConfig.VERSION_CODE < magisk.versionCode -> State.OUTDATED
+                Const.APP_IS_CANARY && BuildConfig.VERSION_NAME != magisk.version -> State.OUTDATED
                 else -> State.UP_TO_DATE
             }
 

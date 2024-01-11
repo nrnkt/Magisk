@@ -2,6 +2,7 @@ package com.topjohnwu.magisk.core
 
 import android.annotation.SuppressLint
 import android.content.SharedPreferences
+import android.os.Build
 import android.util.Xml
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.edit
@@ -41,9 +42,12 @@ object Config : PreferenceConfig, DBConfig {
         const val SU_MNT_NS = "mnt_ns"
         const val SU_BIOMETRIC = "su_biometric"
         const val ZYGISK = "zygisk"
-        const val DENYLIST = "denylist"
+        const val DENYLIST = "hide"
         const val SU_MANAGER = "requester"
         const val KEYSTORE = "keystore"
+        const val SULIST = "sulist"
+        const val COREONLY = "coreonly"
+        const val ANTIBOOTLOOP = "anti_bootloop"
 
         // prefs
         const val SU_REQUEST_TIMEOUT = "su_request_timeout"
@@ -55,7 +59,8 @@ object Config : PreferenceConfig, DBConfig {
         const val UPDATE_CHANNEL = "update_channel"
         const val CUSTOM_CHANNEL = "custom_channel"
         const val LOCALE = "locale"
-        const val DARK_THEME = "dark_theme_extended"
+        const val DARK_THEME = "dark_theme"
+        const val DARK_THEME_LIST = "dark_theme_list"
         const val REPO_ORDER = "repo_order"
         const val SHOW_SYSTEM_APP = "show_system"
         const val DOWNLOAD_DIR = "download_dir"
@@ -106,6 +111,13 @@ object Config : PreferenceConfig, DBConfig {
         // repo order
         const val ORDER_NAME = 0
         const val ORDER_DATE = 1
+
+        // dark mode
+        const val DARK_THEME_SYSTEM = -1
+        const val DARK_THEME_NO = 1
+        const val DARK_THEME_YES = 2
+        // for description entry
+        const val LIST_DARK_THEME_SYSTEM = 0
     }
 
     private val defaultChannel =
@@ -131,10 +143,11 @@ object Config : PreferenceConfig, DBConfig {
     var suAutoResponse by preferenceStrInt(Key.SU_AUTO_RESPONSE, Value.SU_PROMPT)
     var suNotification by preferenceStrInt(Key.SU_NOTIFICATION, Value.NOTIFICATION_TOAST)
     var updateChannel by preferenceStrInt(Key.UPDATE_CHANNEL, defaultChannel)
+    var darkTheme by preferenceStrInt(Key.DARK_THEME, Value.DARK_THEME_SYSTEM)
+    var darkThemeList by preferenceStrInt(Key.DARK_THEME_LIST, Value.LIST_DARK_THEME_SYSTEM)
 
     var safetyNotice by preference(Key.SAFETY, true)
-    var darkTheme by preference(Key.DARK_THEME, AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
-    var themeOrdinal by preference(Key.THEME_ORDINAL, Theme.Piplup.ordinal)
+    var themeOrdinal by preference(Key.THEME_ORDINAL, if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Theme.Dynamic.ordinal else Theme.Blush.ordinal)
     var suReAuth by preference(Key.SU_REAUTH, false)
     var suTapjack by preference(Key.SU_TAPJACK, true)
     private var checkUpdatePrefs by preference(Key.CHECK_UPDATES, true)
@@ -164,6 +177,9 @@ object Config : PreferenceConfig, DBConfig {
     var suBiometric by dbSettings(Key.SU_BIOMETRIC, false)
     var zygisk by dbSettings(Key.ZYGISK, false)
     var denyList by BoolDBPropertyNoWrite(Key.DENYLIST, false)
+    var sulist by BoolDBPropertyNoWrite(Key.SULIST, false)
+    var coreonly by BoolDBPropertyNoWrite(Key.COREONLY, false)
+    var antiBLoop by BoolDBPropertyNoWrite(Key.ANTIBOOTLOOP, false)
     var suManager by dbStrings(Key.SU_MANAGER, "", true)
     var keyStoreRaw by dbStrings(Key.KEYSTORE, "", true)
 

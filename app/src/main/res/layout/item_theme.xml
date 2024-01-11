@@ -16,167 +16,112 @@
     </data>
 
     <com.google.android.material.card.MaterialCardView
-        style="@style/WidgetFoundation.Card"
+        style="@style/WidgetR.CardView.Elevated.NoShadow"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/l1_25"
+        android:layout_marginStart="@dimen/l1_25"
+        android:layout_marginEnd="@dimen/l1_25"
         android:onClick="@{() -> viewModel.saveTheme(theme)}"
-        app:cardBackgroundColor="@android:color/transparent"
-        app:strokeColor="?colorPrimaryVariant"
-        app:strokeWidth="1.5dp"
-        tools:layout_gravity="center">
+        app:cardCornerRadius="@dimen/l1_50"
+        app:strokeColor="?colorPrimary"
+        app:strokeWidth="@{theme.isSelected ? @dimen/l_25 : 0}"
+        app:cardElevation="@dimen/l2">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="?colorSurface">
+            android:layout_height="wrap_content">
 
-            <com.google.android.material.appbar.AppBarLayout
-                android:id="@+id/theme_appbar"
-                style="@style/WidgetFoundation.Appbar"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:layout_constraintTop_toTopOf="parent">
-
-                <com.google.android.material.appbar.MaterialToolbar
-                    style="@style/WidgetFoundation.Toolbar"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical">
-
-                        <View
-                            android:layout_width="100dp"
-                            android:layout_height="17sp"
-                            android:layout_gravity="center_vertical|start"
-                            android:background="?colorOnSurface" />
-
-                        <View
-                            android:layout_width="70dp"
-                            android:layout_height="12sp"
-                            android:layout_gravity="center_vertical|start"
-                            android:layout_marginTop="@dimen/l_25"
-                            android:background="?colorOnSurfaceVariant" />
-
-                    </LinearLayout>
-
-                </com.google.android.material.appbar.MaterialToolbar>
-
-            </com.google.android.material.appbar.AppBarLayout>
-
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/theme_card_bottom"
-                style="@style/WidgetFoundation.Card"
+            <TextView
+                android:id="@+id/theme_name"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="@dimen/l1"
-                android:layout_marginTop="@dimen/l1"
-                android:layout_marginEnd="@dimen/l1"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/theme_appbar">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="@dimen/l1">
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="17sp"
-                        android:background="?colorOnSurface" />
-
-                    <View
-                        android:layout_width="40dp"
-                        android:layout_height="11sp"
-                        android:layout_marginTop="@dimen/l_25"
-                        android:background="?colorOnSurfaceVariant" />
-
-                    <View
-                        android:layout_width="30dp"
-                        android:layout_height="11sp"
-                        android:layout_marginTop="@dimen/l_25"
-                        android:background="?colorOnSurfaceVariant" />
-
-                </LinearLayout>
-
-            </com.google.android.material.card.MaterialCardView>
-
-            <LinearLayout
-                android:id="@+id/theme_primary"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/l1"
-                android:background="?colorPrimary"
-                android:orientation="vertical"
-                android:padding="@dimen/l1"
-                app:layout_constraintTop_toBottomOf="@+id/theme_card_bottom">
-
-                <TextView
-                    android:layout_width="125dp"
-                    android:layout_height="wrap_content"
-                    android:text="@{theme.themeName}"
-                    android:textAppearance="@style/AppearanceFoundation.Title.OnPrimary"
-                    android:textStyle="bold"
-                    tools:text="Default" />
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="12sp"
-                    android:background="?colorOnPrimaryVariant" />
-
-                <View
-                    android:layout_width="75dp"
-                    android:layout_height="12sp"
-                    android:layout_marginTop="@dimen/l_25"
-                    android:background="?colorOnPrimaryVariant" />
-
-            </LinearLayout>
+                android:layout_margin="@dimen/l1_25"
+                android:paddingStart="@dimen/l_25"
+                android:paddingEnd="@dimen/l_25"
+                android:text="@{theme.themeName}"
+                android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintRight_toLeftOf="@id/theme_icon"
+                tools:text="Dynamic" />
 
             <com.google.android.material.card.MaterialCardView
-                android:id="@+id/theme_navigation"
-                style="@style/WidgetFoundation.Card.Elevated"
+                android:id="@+id/theme_colors"
+                style="@style/WidgetR.CardView.Elevated.NoShadow"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/l1"
-                android:layout_marginBottom="@dimen/l1"
+                android:layout_margin="@dimen/l1_25"
+                app:cardBackgroundColor="?colorSurface"
+                app:strokeWidth="1dp"
+                app:strokeColor="?colorOnSecondary"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/theme_primary">
+                app:layout_constraintTop_toBottomOf="@id/theme_name">
 
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:padding="@dimen/l1">
+                    android:gravity="center_horizontal"
+                    android:padding="@dimen/l_125">
 
-                    <View
-                        style="@style/WidgetFoundation.Image.Small"
-                        android:background="?colorSecondary" />
+                    <com.google.android.material.imageview.ShapeableImageView
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:background="?colorPrimary"
+                        android:padding="@dimen/l_25"
+                        app:shapeAppearanceOverlay="@style/RoundedImage" />
 
-                    <View
-                        style="@style/WidgetFoundation.Image.Small"
-                        android:layout_marginStart="@dimen/l1"
-                        android:background="?colorDisabled" />
+                    <com.google.android.material.imageview.ShapeableImageView
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:background="?colorSecondary"
+                        android:padding="@dimen/l_25"
+                        app:shapeAppearanceOverlay="@style/RoundedImage" />
+
+                    <com.google.android.material.imageview.ShapeableImageView
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:background="?colorTertiary"
+                        android:padding="@dimen/l_25"
+                        app:shapeAppearanceOverlay="@style/RoundedImage" />
+
+
+                    <com.google.android.material.imageview.ShapeableImageView
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:background="?colorPrimaryInverse"
+                        android:padding="@dimen/l_25"
+                        app:shapeAppearanceOverlay="@style/RoundedImage" />
 
                 </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/WidgetR.CardView.Elevated.NoShadow"
+                android:id="@+id/theme_icon"
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                android:layout_margin="@dimen/l1_25"
+                app:cardBackgroundColor="?colorSurface"
+                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:cardCornerRadius="@dimen/l2"
+                app:strokeWidth="1dp"
+                app:strokeColor="?colorOnSecondary">
+
+                <com.google.android.material.imageview.ShapeableImageView
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    app:srcCompat="@drawable/ic_theme_magisk"
+                    android:scaleX="0.75"
+                    android:scaleY="0.75"/>
 
             </com.google.android.material.card.MaterialCardView>
 
         </androidx.constraintlayout.widget.ConstraintLayout>
-
-        <ImageView
-            style="@style/WidgetFoundation.Icon.OnPrimary"
-            gone="@{!theme.isSelected}"
-            android:layout_gravity="end|top"
-            android:layout_margin="@dimen/l_50"
-            android:background="@drawable/bg_selection_circle_green"
-            app:srcCompat="@drawable/ic_check_md2"
-            app:tint="#fff" />
 
     </com.google.android.material.card.MaterialCardView>
 

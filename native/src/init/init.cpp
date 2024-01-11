@@ -83,8 +83,9 @@ int main(int argc, char *argv[]) {
     if (name == "magisk"sv)
         return magisk_proxy_main(argc, argv);
 
-    if (name == "magiskinit"sv && argc == 2 && argv[1] == "--rules-device"sv)
-        return rust::print_rules_device();
+    if (argc > 2 && argv[1] == "--patch-sepol"sv) {
+        return patch_sepol(argv[2],(argc > 3)? argv[3]: argv[2]);
+    }
 
     if (getpid() != 1)
         return 1;

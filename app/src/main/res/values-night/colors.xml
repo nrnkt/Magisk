@@ -1,4 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="splash_background">#0D0D0D</color>
+    <color name="switch_thumb_disabled">#454749</color>
+    <color name="switch_thumb_off">#8F9193</color>
+    <color name="switch_track_on">@color/color_switch_track_on</color>
+    <color name="switch_track_off">#454749</color>
+    <color name="error">#F87464</color>
+    <color name="on_error">#690005</color>
+    <color name="icon_accent">#C1E8FF</color>
+    <color name="icon_accent_bg">#2E3133</color>
+    <color name="request_dialog">#2A3136</color>
 </resources>
